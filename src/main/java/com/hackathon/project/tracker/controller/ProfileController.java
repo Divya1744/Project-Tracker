@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
+@RequestMapping("/api/auth")
 public class ProfileController {
 
     private final ProfileServiceImpl profileService;
@@ -21,7 +22,7 @@ public class ProfileController {
     public ProfileResponse register(@Valid @RequestBody ProfileRequest request){
         ProfileResponse response = profileService.createProfile(request);
         //welcome mail
-        emailService.sendWelcomeEmail(response.getEmail(), response.getName());
+        profileService.sendWelcomeWithOtp(response.getEmail(), response.getName());
         return response;
 
     }
@@ -30,4 +31,6 @@ public class ProfileController {
     public ProfileResponse profile(@CurrentSecurityContext(expression = "authentication?.name")String email){
         return profileService.getProfile(email);
     }
+
+
 }

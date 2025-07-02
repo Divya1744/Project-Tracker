@@ -33,8 +33,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception
     {
         return http.authorizeHttpRequests(request -> request
-
-                        .requestMatchers("/home/**","/login","/register","/send-reset-otp","/reset-password").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .httpBasic(Customizer.withDefaults())
@@ -55,13 +55,13 @@ public class SecurityConfig {
 
     @Bean
     public CorsFilter corsFilter(){
-        return new CorsFilter(corsCofigurationSource());
+        return new CorsFilter(corsConfigurationSource());
     }
 
-    private CorsConfigurationSource corsCofigurationSource() {
+    private CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.addAllowedMethod("*");
-        config.addAllowedOrigin("http://localhost:5173");
+        config.addAllowedOriginPattern("*");
         config.addAllowedHeader("*");
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
