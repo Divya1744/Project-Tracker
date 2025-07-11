@@ -3,12 +3,15 @@ package com.hackathon.project.tracker.service;
 import com.hackathon.project.tracker.io.ProjectRequest;
 import com.hackathon.project.tracker.io.ProjectResponse;
 import com.hackathon.project.tracker.model.ProjectEntity;
+import com.hackathon.project.tracker.model.Role;
 import com.hackathon.project.tracker.model.UserEntity;
 import com.hackathon.project.tracker.repository.ProjectRepository;
+import com.hackathon.project.tracker.repository.TaskRepository;
 import com.hackathon.project.tracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 ;
@@ -24,6 +27,7 @@ public class ProjectServiceImple implements ProjectService{
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
 
     @Override
     public ProjectResponse createProject(ProjectRequest request) {
@@ -74,9 +78,27 @@ public class ProjectServiceImple implements ProjectService{
     }
 
     @Override
-    public ProjectResponse getProjectById(String projectId) {
+    public ProjectResponse getProjectById(String projectId,String email) {
         ProjectEntity project = projectRepository.findByProjectId(projectId).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project Not found"));
+        UserEntity user = userRepository.findByEmail(email).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found"));
+        Role role = user.getRole();
+        if(Role.ENGINEER.equals(role)){
+            boolean isAssigned = isEngineerAssignedToProject(email,projectId);
+            if(!isAssigned){
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Access denied: You are not assigned to this project");
+            }
+        }
+        else if (Role.MANAGER.equals(role)) {
+            if (!project.getCreatedBy().getId().equals(user.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied: You did not create this project");
+            }
+        }
+
         return convertEntityToResponse(project);
+    }
+
+    private boolean isEngineerAssignedToProject(String email, String projectId) {
+        return taskRepository.existsByAssignedToEmailAndProjectProjectId(email,projectId);
     }
 
     @Override
@@ -91,15 +113,42 @@ public class ProjectServiceImple implements ProjectService{
     }
 
     @Override
-    public void deleteProject(String projectId) {
-        if(!projectRepository.existsByProjectId(projectId)){
-            throw  new ResponseStatusException(HttpStatus.NOT_FOUND,"project not found");
+    public void deleteProject(String projectId, String email) {
+
+        ProjectEntity project = projectRepository.findByProjectId(projectId).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Project not found"));
+        UserEntity user = userRepository.findByEmail(email).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"user not found"));
+        Role role = user.getRole();
+        if(Role.ENGINEER.equals(role)){
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,"You are not allowed to delete projects");
+        }
+        else if(Role.MANAGER.equals(role)){
+            if(!project.getCreatedBy().getId().equals(user.getId())){
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,"You are not allowed to delete this project,you did not create this");
+            }
         }
         projectRepository.deleteByProjectId(projectId);
     }
 
-    public List<ProjectResponse> filterProjects(String status, LocalDate endDate, String createdByEmail){
-        List<ProjectEntity> projects = projectRepository.filterProjects(status,endDate,createdByEmail);
+    public List<ProjectResponse> filterProjects(String status, LocalDate endDate, String email){
+        UserEntity user = userRepository.findByEmail(email).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"User not found"));
+        Role role = user.getRole();
+
+        List<ProjectEntity> projects = new ArrayList<>();
+
+        if(Role.ADMIN.equals(role)){
+                // Admin sees everything
+                projects = projectRepository.filterProjects(status, endDate, null);
+
+        }else if (Role.MANAGER.equals(user.getRole())) {
+            // Manager sees their own projects
+            projects = projectRepository.filterProjects(status, endDate, email);
+        }else if (Role.ENGINEER.equals(user.getRole())) {
+            // Engineer sees only projects they have tasks in
+            projects = projectRepository.filterProjectForEngineers(email, status, endDate);
+        }else {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Unknown role access denied");
+        }
+
         List<ProjectResponse> responses = new ArrayList<>();
         for(ProjectEntity x : projects){
             responses.add(convertEntityToResponse(x));

@@ -2,6 +2,7 @@ package com.hackathon.project.tracker.service;
 
 import com.hackathon.project.tracker.io.ProfileRequest;
 import com.hackathon.project.tracker.io.ProfileResponse;
+import com.hackathon.project.tracker.model.Role;
 import com.hackathon.project.tracker.model.UserEntity;
 import com.hackathon.project.tracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -51,7 +52,7 @@ public class ProfileServiceImpl implements ProfileService{
                 .userId(UUID.randomUUID().toString())
                 .name(request.getName())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role("ROLE_ENGINEER")
+                .role(Role.ENGINEER)
                 .isAccountVerified(false)
                 .resetOtpExpireAt(0L)
                 .verifyOtp(null)
