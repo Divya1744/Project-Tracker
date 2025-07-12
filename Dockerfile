@@ -1,14 +1,19 @@
-# Use an official OpenJDK 17 image as base
-FROM eclipse-temurin:17-jdk
+# Use Maven and JDK for building
+FROM maven:3.9.4-eclipse-temurin-17 AS build
 
-# Set the working directory inside the container
+WORKDIR /app
+COPY . .
+
+# Build the app
+RUN mvn clean package -DskipTests
+
+# ==============================
+# Run the app
+FROM eclipse-temurin:17-jdk
 WORKDIR /app
 
-# Copy the built JAR file to the container
-COPY target/project-tracker-0.0.1-SNAPSHOT.jar app.jar
+# Copy the JAR from the build stage
+COPY --from=build /app/target/project-tracker-0.0.1-SNAPSHOT.jar app.jar
 
-# Expose the port your Spring Boot app runs on
 EXPOSE 8080
-
-# Run the JAR file
-ENTRYPOINT ["java", "-jar", "app.jar"]
+CMD ["java", "-jar", "app.jar"]
