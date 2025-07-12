@@ -1,18 +1,14 @@
-# Start from an OpenJDK base image
-FROM openjdk:17-jdk-slim
+# Use an official OpenJDK 17 image as base
+FROM eclipse-temurin:17-jdk
 
-# Set the working directory
+# Set the working directory inside the container
 WORKDIR /app
 
-# Add the JAR file to the container
-ARG JAR_FILE=target/*.jar
-COPY ${JAR_FILE} app.jar
+# Copy the built JAR file to the container
+COPY target/project-tracker-0.0.1-SNAPSHOT.jar app.jar
 
-# Set environment variables to be configured at runtime
-ENV SPRING_PROFILES_ACTIVE=prod
-
-# Expose port
+# Expose the port your Spring Boot app runs on
 EXPOSE 8080
 
-# Run the application
+# Run the JAR file
 ENTRYPOINT ["java", "-jar", "app.jar"]
